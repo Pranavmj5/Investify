@@ -7,12 +7,11 @@
 
     <display-name>Investify</display-name>
 
+    <!-- Single welcome file — index.jsp at project root -->
     <welcome-file-list>
         <welcome-file>index.jsp</welcome-file>
-        <welcome-file>login.jsp</welcome-file>
     </welcome-file-list>
 
     <!-- Servlets are auto-discovered via @WebServlet annotations -->
 
 </web-app>
-
