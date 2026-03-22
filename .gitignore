@@ -1,0 +1,16 @@
+# Build outputs — recompiled inside Docker, don't commit
+*.class
+*.war
+
+# Staging dirs created by build_war.bat
+war_staging/
+
+# IDE and OS files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
