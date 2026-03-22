@@ -180,11 +180,12 @@ if defined TOMCAT_HOME SET TOMCAT_WEBAPPS=%TOMCAT_HOME%\webapps
 if exist "%TOMCAT_WEBAPPS%" (
     echo.
     echo [4b] Deploying to Tomcat...
-    copy /Y "%WAR_OUT%" "%TOMCAT_WEBAPPS%\investify.war" >nul
-    REM Remove expanded folder so Tomcat re-extracts fresh
+    copy /Y "%WAR_OUT%" "%TOMCAT_WEBAPPS%\ROOT.war" >nul
+    REM Remove old expanded folders so Tomcat re-extracts fresh
+    if exist "%TOMCAT_WEBAPPS%\ROOT"      rmdir /S /Q "%TOMCAT_WEBAPPS%\ROOT"
     if exist "%TOMCAT_WEBAPPS%\investify" rmdir /S /Q "%TOMCAT_WEBAPPS%\investify"
-    echo    Copied investify.war to Tomcat webapps.
-    echo    Tomcat will auto-deploy within a few seconds.
+    echo    Copied investify.war as ROOT.war to Tomcat webapps.
+    echo    App will be available at http://localhost:8080/
 ) else (
     echo [INFO] Tomcat webapps not found - skipping auto-deploy.
     echo        Copy investify.war manually to your Tomcat webapps folder.
