@@ -1,6 +1,5 @@
-# Build outputs — recompiled inside Docker, don't commit
+# Build outputs — don't commit compiled classes
 *.class
-*.war
 
 # Staging dirs created by build_war.bat
 war_staging/
