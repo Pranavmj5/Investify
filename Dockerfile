@@ -29,6 +29,10 @@ COPY investor/   ./investor/
 COPY government/ ./government/
 COPY docs/       ./docs/
 
+# Debug: list files so we can see what Tomcat has
+RUN echo "=== ROOT webapp contents ===" && ls -la /usr/local/tomcat/webapps/ROOT/ && \
+    echo "=== WEB-INF/classes ===" && ls /usr/local/tomcat/webapps/ROOT/WEB-INF/classes/com/investify/servlet/ || true
+
 EXPOSE 8080
 
 CMD ["catalina.sh", "run"]
