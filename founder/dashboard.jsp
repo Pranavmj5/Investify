@@ -14,23 +14,34 @@
                 String startupName="No Startup Registered"; 
                 List<Map<String, String>> requestsList = new ArrayList<>();
                 try (Connection conn=DBConnection.getConnection()) { 
-                    PreparedStatement ps=conn.prepareStatement("SELECT * FROM startup WHERE founder_id=? LIMIT 1"); 
+                    // Get the primary startup for this founder
+                    PreparedStatement ps=conn.prepareStatement("SELECT * FROM startup WHERE founder_id=? ORDER BY id ASC LIMIT 1"); 
                     ps.setInt(1, userId); 
                     ResultSet rs=ps.executeQuery(); 
                     if (rs.next()) {
                         startupName=rs.getString("title"); 
                         fundingGoal=rs.getDouble("funding_goal");
-                        fundingRaised=rs.getDouble("funding_raised"); 
                         profileViews=rs.getInt("profile_views");
-                        if (fundingGoal> 0)
-                            fundingPercent = (int)(fundingRaised / fundingGoal * 100);
                         int startupId = rs.getInt("id");
 
+                        // Count ALL investment requests for this startup
                         PreparedStatement ps2 = conn.prepareStatement("SELECT COUNT(*) FROM investment_request WHERE startup_id=?");
                         ps2.setInt(1, startupId);
                         ResultSet rs2 = ps2.executeQuery();
                         if (rs2.next()) investorInterest = rs2.getInt(1);
 
+                        // Sum funding from accepted requests (more accurate than stale column)
+                        PreparedStatement psRaised = conn.prepareStatement("SELECT COALESCE(SUM(amount),0) FROM investment_request WHERE startup_id=? AND status='accepted'");
+                        psRaised.setInt(1, startupId);
+                        ResultSet rsRaised = psRaised.executeQuery();
+                        if (rsRaised.next()) fundingRaised = rsRaised.getDouble(1);
+                        // Fall back to stored value if no accepted requests yet
+                        if (fundingRaised == 0) fundingRaised = rs.getDouble("funding_raised");
+
+                        if (fundingGoal > 0)
+                            fundingPercent = (int)(fundingRaised / fundingGoal * 100);
+
+                        // Recent requests
                         PreparedStatement ps3 = conn.prepareStatement("SELECT ir.*, u.name as investor_name, u.email as investor_email FROM investment_request ir JOIN users u ON ir.investor_id = u.id WHERE ir.startup_id=? ORDER BY ir.created_at DESC LIMIT 5");
                         ps3.setInt(1, startupId);
                         ResultSet rs3 = ps3.executeQuery();
@@ -54,6 +65,7 @@
                 String fmtGoal = fundingGoal >= 1000000 ? String.format("$%.1fM", fundingGoal / 1000000) : String.format("$%.0fK", fundingGoal / 1000);
                 double strokeOffset = 251.2 - (251.2 * fundingPercent / 100.0);
             %>
+
                 <!DOCTYPE html>
                 <html lang="en">
 
