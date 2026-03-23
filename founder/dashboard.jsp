@@ -4,65 +4,97 @@
             return; } int userId=(int) session.getAttribute("user_id"); String userName=(String)
             session.getAttribute("user_name"); %>
 
-            <% 
-                if (userName==null) userName="Founder"; 
-                int investorInterest=0; 
-                double fundingGoal=0; 
-                double fundingRaised=0; 
-                int fundingPercent=0; 
-                int profileViews=0;
-                String startupName="No Startup Registered"; 
+            <%
+                if (userName == null) userName = "Founder";
+                int investorInterest = 0;
+                double fundingGoal = 0;
+                double fundingRaised = 0;
+                double storedFundingRaised = 0;
+                int fundingPercent = 0;
+                int profileViews = 0;
+                String startupName = "No Startup Registered";
+                int primaryStartupId = -1;
                 List<Map<String, String>> requestsList = new ArrayList<>();
-                try (Connection conn=DBConnection.getConnection()) { 
-                    // Get the primary startup for this founder
-                    PreparedStatement ps=conn.prepareStatement("SELECT * FROM startup WHERE founder_id=? ORDER BY id ASC LIMIT 1"); 
-                    ps.setInt(1, userId); 
-                    ResultSet rs=ps.executeQuery(); 
-                    if (rs.next()) {
-                        startupName=rs.getString("title"); 
-                        fundingGoal=rs.getDouble("funding_goal");
-                        profileViews=rs.getInt("profile_views");
-                        int startupId = rs.getInt("id");
 
-                        // Count ALL investment requests for this startup
-                        PreparedStatement ps2 = conn.prepareStatement("SELECT COUNT(*) FROM investment_request WHERE startup_id=?");
-                        ps2.setInt(1, startupId);
-                        ResultSet rs2 = ps2.executeQuery();
-                        if (rs2.next()) investorInterest = rs2.getInt(1);
+                try (Connection conn = DBConnection.getConnection()) {
 
-                        // Sum funding from accepted requests (more accurate than stale column)
-                        PreparedStatement psRaised = conn.prepareStatement("SELECT COALESCE(SUM(amount),0) FROM investment_request WHERE startup_id=? AND status='accepted'");
-                        psRaised.setInt(1, startupId);
-                        ResultSet rsRaised = psRaised.executeQuery();
-                        if (rsRaised.next()) fundingRaised = rsRaised.getDouble(1);
-                        // Fall back to stored value if no accepted requests yet
-                        if (fundingRaised == 0) fundingRaised = rs.getDouble("funding_raised");
+                    // ── 1. Find the startup for this founder that has investment requests (prefer one with requests) ──
+                    PreparedStatement psFind = conn.prepareStatement(
+                        "SELECT s.id, s.title, s.funding_goal, s.funding_raised, s.profile_views " +
+                        "FROM startup s " +
+                        "WHERE s.founder_id = ? " +
+                        "ORDER BY (SELECT COUNT(*) FROM investment_request ir WHERE ir.startup_id = s.id) DESC, s.id ASC " +
+                        "LIMIT 1");
+                    psFind.setInt(1, userId);
+                    ResultSet rsFind = psFind.executeQuery();
+                    if (rsFind.next()) {
+                        primaryStartupId    = rsFind.getInt("id");
+                        startupName         = rsFind.getString("title");
+                        fundingGoal         = rsFind.getDouble("funding_goal");
+                        storedFundingRaised = rsFind.getDouble("funding_raised");
+                        profileViews        = rsFind.getInt("profile_views");
+                    }
+                    rsFind.close(); psFind.close();
+
+                    if (primaryStartupId != -1) {
+
+                        // ── 2. Count all requests for this startup ──
+                        PreparedStatement psCount = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM investment_request WHERE startup_id = ?");
+                        psCount.setInt(1, primaryStartupId);
+                        ResultSet rsCount = psCount.executeQuery();
+                        if (rsCount.next()) investorInterest = rsCount.getInt(1);
+                        rsCount.close(); psCount.close();
+
+                        // ── 3. Sum accepted investment amounts dynamically ──
+                        PreparedStatement psSum = conn.prepareStatement(
+                            "SELECT COALESCE(SUM(amount), 0) FROM investment_request " +
+                            "WHERE startup_id = ? AND LOWER(TRIM(status)) = 'accepted'");
+                        psSum.setInt(1, primaryStartupId);
+                        ResultSet rsSum = psSum.executeQuery();
+                        if (rsSum.next()) fundingRaised = rsSum.getDouble(1);
+                        rsSum.close(); psSum.close();
+
+                        // Fall back to stored value only if no accepted requests exist
+                        if (fundingRaised == 0) fundingRaised = storedFundingRaised;
 
                         if (fundingGoal > 0)
                             fundingPercent = (int)(fundingRaised / fundingGoal * 100);
 
-                        // Recent requests
-                        PreparedStatement ps3 = conn.prepareStatement("SELECT ir.*, u.name as investor_name, u.email as investor_email FROM investment_request ir JOIN users u ON ir.investor_id = u.id WHERE ir.startup_id=? ORDER BY ir.created_at DESC LIMIT 5");
-                        ps3.setInt(1, startupId);
-                        ResultSet rs3 = ps3.executeQuery();
-                        while(rs3.next()){
+                        // ── 4. Recent investor requests ──
+                        PreparedStatement psReq = conn.prepareStatement(
+                            "SELECT ir.id, ir.amount, ir.message, ir.status, ir.created_at, " +
+                            "       u.name AS investor_name, u.email AS investor_email " +
+                            "FROM investment_request ir " +
+                            "JOIN users u ON ir.investor_id = u.id " +
+                            "WHERE ir.startup_id = ? " +
+                            "ORDER BY ir.created_at DESC LIMIT 5");
+                        psReq.setInt(1, primaryStartupId);
+                        ResultSet rsReq = psReq.executeQuery();
+                        while (rsReq.next()) {
                             Map<String, String> req = new HashMap<>();
-                            req.put("id", String.valueOf(rs3.getInt("id")));
-                            req.put("investor_name", rs3.getString("investor_name"));
-                            req.put("amount", String.valueOf(rs3.getDouble("amount")));
-                            req.put("message", rs3.getString("message"));
-                            req.put("status", rs3.getString("status"));
-                            req.put("created_at", rs3.getString("created_at"));
+                            req.put("id",            String.valueOf(rsReq.getInt("id")));
+                            req.put("investor_name", rsReq.getString("investor_name"));
+                            req.put("amount",        String.valueOf(rsReq.getDouble("amount")));
+                            req.put("message",       rsReq.getString("message"));
+                            req.put("status",        rsReq.getString("status"));
+                            req.put("created_at",    rsReq.getString("created_at"));
                             requestsList.add(req);
                         }
+                        rsReq.close(); psReq.close();
                     }
-                } catch (Exception e) { 
+
+                } catch (Exception e) {
                     e.printStackTrace();
-                    startupName = "Error: " + e.getMessage();
+                    startupName = "Error loading data: " + e.getMessage();
                 }
 
-                String fmtRaised = fundingRaised >= 1000000 ? String.format("$%.1fM", fundingRaised / 1000000) : String.format("$%.0fK", fundingRaised / 1000);
-                String fmtGoal = fundingGoal >= 1000000 ? String.format("$%.1fM", fundingGoal / 1000000) : String.format("$%.0fK", fundingGoal / 1000);
+                String fmtRaised = fundingRaised >= 1_000_000
+                    ? String.format("$%.1fM", fundingRaised / 1_000_000)
+                    : String.format("$%.0fK", fundingRaised / 1_000);
+                String fmtGoal = fundingGoal >= 1_000_000
+                    ? String.format("$%.1fM", fundingGoal / 1_000_000)
+                    : String.format("$%.0fK", fundingGoal / 1_000);
                 double strokeOffset = 251.2 - (251.2 * fundingPercent / 100.0);
             %>
 
