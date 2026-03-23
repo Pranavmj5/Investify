@@ -1,5 +1,4 @@
-# Build outputs — don't commit compiled classes
-*.class
+# WEB-INF/classes are committed so Docker can deploy without recompiling
 
 # Staging dirs created by build_war.bat
 war_staging/
