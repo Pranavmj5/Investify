@@ -3,15 +3,155 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
                              https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
-         version="6.0">
+         version="6.0"
+         metadata-complete="false">
 
     <display-name>Investify</display-name>
 
-    <!-- Single welcome file — index.jsp at project root -->
+    <!-- Welcome file -->
     <welcome-file-list>
         <welcome-file>index.jsp</welcome-file>
+        <welcome-file>login.jsp</welcome-file>
     </welcome-file-list>
 
-    <!-- Servlets are auto-discovered via @WebServlet annotations -->
+    <!-- Auth Filter -->
+    <filter>
+        <filter-name>AuthFilter</filter-name>
+        <filter-class>com.investify.servlet.AuthFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/founder/*</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/investor/*</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/government/*</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/admin/*</url-pattern>
+    </filter-mapping>
+
+    <!-- Servlets -->
+    <servlet>
+        <servlet-name>LoginServlet</servlet-name>
+        <servlet-class>com.investify.servlet.LoginServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>LoginServlet</servlet-name>
+        <url-pattern>/login</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>RegisterServlet</servlet-name>
+        <servlet-class>com.investify.servlet.RegisterServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>RegisterServlet</servlet-name>
+        <url-pattern>/register</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>LogoutServlet</servlet-name>
+        <servlet-class>com.investify.servlet.LogoutServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>LogoutServlet</servlet-name>
+        <url-pattern>/logout</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>StartupServlet</servlet-name>
+        <servlet-class>com.investify.servlet.StartupServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>StartupServlet</servlet-name>
+        <url-pattern>/investor/startups</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>InvestmentServlet</servlet-name>
+        <servlet-class>com.investify.servlet.InvestmentServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>InvestmentServlet</servlet-name>
+        <url-pattern>/investor/invest</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>InvestmentDecisionServlet</servlet-name>
+        <servlet-class>com.investify.servlet.InvestmentDecisionServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>InvestmentDecisionServlet</servlet-name>
+        <url-pattern>/founder/investment-decision</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>PortfolioServlet</servlet-name>
+        <servlet-class>com.investify.servlet.PortfolioServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>PortfolioServlet</servlet-name>
+        <url-pattern>/investor/portfolio</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>AdminStartupServlet</servlet-name>
+        <servlet-class>com.investify.servlet.AdminStartupServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminStartupServlet</servlet-name>
+        <url-pattern>/admin/startups</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>SchemeServlet</servlet-name>
+        <servlet-class>com.investify.servlet.SchemeServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>SchemeServlet</servlet-name>
+        <url-pattern>/government/schemes</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>GovernmentServlet</servlet-name>
+        <servlet-class>com.investify.servlet.GovernmentServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>GovernmentServlet</servlet-name>
+        <url-pattern>/government/login</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>FounderSchemeServlet</servlet-name>
+        <servlet-class>com.investify.servlet.FounderSchemeServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>FounderSchemeServlet</servlet-name>
+        <url-pattern>/founder/schemes</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>TestDBServlet</servlet-name>
+        <servlet-class>com.investify.servlet.TestDBServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>TestDBServlet</servlet-name>
+        <url-pattern>/test-db</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>TestServlet</servlet-name>
+        <servlet-class>com.investify.servlet.TestServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>TestServlet</servlet-name>
+        <url-pattern>/test</url-pattern>
+    </servlet-mapping>
 
 </web-app>
