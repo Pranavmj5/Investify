@@ -7,36 +7,10 @@
 
     <display-name>Investify</display-name>
 
-    <!-- Welcome file -->
     <welcome-file-list>
         <welcome-file>index.jsp</welcome-file>
-        <welcome-file>login.jsp</welcome-file>
     </welcome-file-list>
 
-    <!--
-        All servlets use @WebServlet annotations for URL mapping.
-        Only the AuthFilter is declared here since @WebFilter
-        requires explicit ordering control.
-    -->
-    <filter>
-        <filter-name>AuthFilter</filter-name>
-        <filter-class>com.investify.servlet.AuthFilter</filter-class>
-    </filter>
-    <filter-mapping>
-        <filter-name>AuthFilter</filter-name>
-        <url-pattern>/founder/*</url-pattern>
-    </filter-mapping>
-    <filter-mapping>
-        <filter-name>AuthFilter</filter-name>
-        <url-pattern>/investor/*</url-pattern>
-    </filter-mapping>
-    <filter-mapping>
-        <filter-name>AuthFilter</filter-name>
-        <url-pattern>/government/*</url-pattern>
-    </filter-mapping>
-    <filter-mapping>
-        <filter-name>AuthFilter</filter-name>
-        <url-pattern>/admin/*</url-pattern>
-    </filter-mapping>
+    <!-- Servlets are auto-discovered via @WebServlet annotations -->
 
 </web-app>
