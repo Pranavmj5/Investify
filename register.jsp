@@ -82,7 +82,7 @@
                                 data-step="3">3</div>
                         </div>
 
-                        <form id="register-form" action="register" method="POST">
+                        <form id="register-form" action="register" method="POST" novalidate>
 
                             <!-- Step 1: Role -->
                             <div class="step-panel active" id="step-1">
@@ -240,11 +240,26 @@
         <script>
             let curStep = 1;
             function goStep(n) {
+                // Validate step 2 fields before proceeding to step 3
+                if (n === 3) {
+                    const fn = document.getElementById('firstName').value.trim();
+                    const ln = document.getElementById('lastName').value.trim();
+                    const em = document.getElementById('email').value.trim();
+                    const pw = document.getElementById('password').value;
+                    if (!fn || !ln || !em || !pw) {
+                        alert('Please fill in all required fields before continuing.');
+                        return;
+                    }
+                    if (pw.length < 6) {
+                        alert('Password must be at least 6 characters.');
+                        return;
+                    }
+                }
                 document.getElementById('step-' + curStep).classList.remove('active');
                 document.getElementById('step-' + n).classList.add('active');
                 document.querySelectorAll('.step-dot').forEach(d => {
                     const s = parseInt(d.dataset.step);
-                    if (s < n) { d.classList.remove('bg-bg-cream', 'text-text-muted'); d.classList.add('bg-primary', 'text-white'); d.textContent = '✓'; }
+                    if (s < n) { d.classList.remove('bg-bg-cream', 'text-text-muted'); d.classList.add('bg-primary', 'text-white'); d.textContent = '\u2713'; }
                     else if (s === n) { d.classList.remove('bg-bg-cream', 'text-text-muted'); d.classList.add('bg-primary', 'text-white'); d.textContent = s; }
                     else { d.classList.add('bg-bg-cream', 'text-text-muted'); d.classList.remove('bg-primary', 'text-white'); d.textContent = s; }
                 });
@@ -253,6 +268,13 @@
                 if (n < 2) document.getElementById('line-1').style.background = '';
                 if (n < 3) document.getElementById('line-2').style.background = '';
                 curStep = n;
+            }
+            function submitForm() {
+                if (!document.getElementById('terms-check').checked) {
+                    alert('Please agree to the Terms of Service and Privacy Policy.');
+                    return;
+                }
+                document.getElementById('register-form').submit();
             }
         </script>
     </body>
