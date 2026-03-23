@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS startup (
     description TEXT,
     funding_goal DECIMAL(15,2),
     funding_raised DECIMAL(15,2) DEFAULT 0,
+    profile_views INT DEFAULT 0,
     equity_offered DECIMAL(5,2),
     min_ticket DECIMAL(15,2),
     valuation DECIMAL(15,2),

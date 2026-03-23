@@ -1,102 +1,107 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
-    <%@ page import="java.sql.*, com.investify.db.DBConnection, java.util.*" %>
-        <% if (session.getAttribute("user_id")==null) { response.sendRedirect(request.getContextPath() + "/login.jsp" );
-            return; } int userId=(int) session.getAttribute("user_id"); String userName=(String)
-            session.getAttribute("user_name"); %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
+<%@ page import="java.sql.*, com.investify.db.DBConnection, java.util.*" %>
+<% if (session.getAttribute("user_id") == null) {
+    response.sendRedirect(request.getContextPath() + "/login.jsp");
+    return;
+}
+int userId = (int) session.getAttribute("user_id");
+String userName = (String) session.getAttribute("user_name");
 
-            <%
-                if (userName == null) userName = "Founder";
-                int investorInterest = 0;
-                double fundingGoal = 0;
-                double fundingRaised = 0;
-                double storedFundingRaised = 0;
-                int fundingPercent = 0;
-                int profileViews = 0;
-                String startupName = "No Startup Registered";
-                int primaryStartupId = -1;
-                List<Map<String, String>> requestsList = new ArrayList<>();
 
-                try (Connection conn = DBConnection.getConnection()) {
+    if (userName == null) userName = "Founder";
+    int investorInterest = 0;
+    double fundingGoal = 0;
+    double fundingRaised = 0;
+    int fundingPercent = 0;
+    int profileViews = 0;
+    String startupName = "No Startup Registered";
+    int primaryStartupId = -1;
+    String dbErrorMsg = null;
+    List<Map<String, String>> requestsList = new ArrayList<>();
 
-                    // ── 1. Find the startup for this founder that has investment requests (prefer one with requests) ──
-                    PreparedStatement psFind = conn.prepareStatement(
-                        "SELECT s.id, s.title, s.funding_goal, s.funding_raised, s.profile_views " +
-                        "FROM startup s " +
-                        "WHERE s.founder_id = ? " +
-                        "ORDER BY (SELECT COUNT(*) FROM investment_request ir WHERE ir.startup_id = s.id) DESC, s.id ASC " +
-                        "LIMIT 1");
-                    psFind.setInt(1, userId);
-                    ResultSet rsFind = psFind.executeQuery();
-                    if (rsFind.next()) {
-                        primaryStartupId    = rsFind.getInt("id");
-                        startupName         = rsFind.getString("title");
-                        fundingGoal         = rsFind.getDouble("funding_goal");
-                        storedFundingRaised = rsFind.getDouble("funding_raised");
-                        profileViews        = rsFind.getInt("profile_views");
-                    }
-                    rsFind.close(); psFind.close();
+    Connection conn = DBConnection.getConnection();
+    if (conn == null) {
+        dbErrorMsg = "Database connection failed. Please check server environment variables.";
+    } else {
+        try {
+            // ── 1. Find the startup for this founder ──
+            PreparedStatement psFind = conn.prepareStatement(
+                "SELECT s.id, s.title, s.funding_goal, s.funding_raised " +
+                "FROM startup s " +
+                "WHERE s.founder_id = ? " +
+                "ORDER BY (SELECT COUNT(*) FROM investment_request ir WHERE ir.startup_id = s.id) DESC, s.id ASC " +
+                "LIMIT 1");
+            psFind.setInt(1, userId);
+            ResultSet rsFind = psFind.executeQuery();
+            if (rsFind.next()) {
+                primaryStartupId = rsFind.getInt("id");
+                startupName      = rsFind.getString("title");
+                fundingGoal      = rsFind.getDouble("funding_goal");
+                // funding_raised in startup table is kept up-to-date by InvestmentDecisionServlet
+                fundingRaised    = rsFind.getDouble("funding_raised");
+            }
+            rsFind.close(); psFind.close();
 
-                    if (primaryStartupId != -1) {
+            if (primaryStartupId != -1) {
+                // ── 2. Count all investment requests ──
+                PreparedStatement psCount = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM investment_request WHERE startup_id = ?");
+                psCount.setInt(1, primaryStartupId);
+                ResultSet rsCount = psCount.executeQuery();
+                if (rsCount.next()) investorInterest = rsCount.getInt(1);
+                rsCount.close(); psCount.close();
 
-                        // ── 2. Count all requests for this startup ──
-                        PreparedStatement psCount = conn.prepareStatement(
-                            "SELECT COUNT(*) FROM investment_request WHERE startup_id = ?");
-                        psCount.setInt(1, primaryStartupId);
-                        ResultSet rsCount = psCount.executeQuery();
-                        if (rsCount.next()) investorInterest = rsCount.getInt(1);
-                        rsCount.close(); psCount.close();
+                // ── 3. Count profile views separately (if column exists) ──
+                try {
+                    PreparedStatement psViews = conn.prepareStatement(
+                        "SELECT profile_views FROM startup WHERE id = ?");
+                    psViews.setInt(1, primaryStartupId);
+                    ResultSet rsViews = psViews.executeQuery();
+                    if (rsViews.next()) profileViews = rsViews.getInt(1);
+                    rsViews.close(); psViews.close();
+                } catch (Exception ignored) { /* profile_views column may not exist yet */ }
 
-                        // ── 3. Sum accepted investment amounts dynamically ──
-                        PreparedStatement psSum = conn.prepareStatement(
-                            "SELECT COALESCE(SUM(amount), 0) FROM investment_request " +
-                            "WHERE startup_id = ? AND LOWER(TRIM(status)) = 'accepted'");
-                        psSum.setInt(1, primaryStartupId);
-                        ResultSet rsSum = psSum.executeQuery();
-                        if (rsSum.next()) fundingRaised = rsSum.getDouble(1);
-                        rsSum.close(); psSum.close();
+                if (fundingGoal > 0)
+                    fundingPercent = (int) Math.min(100, (fundingRaised / fundingGoal * 100));
 
-                        // Fall back to stored value only if no accepted requests exist
-                        if (fundingRaised == 0) fundingRaised = storedFundingRaised;
-
-                        if (fundingGoal > 0)
-                            fundingPercent = (int)(fundingRaised / fundingGoal * 100);
-
-                        // ── 4. Recent investor requests ──
-                        PreparedStatement psReq = conn.prepareStatement(
-                            "SELECT ir.id, ir.amount, ir.message, ir.status, ir.created_at, " +
-                            "       u.name AS investor_name, u.email AS investor_email " +
-                            "FROM investment_request ir " +
-                            "JOIN users u ON ir.investor_id = u.id " +
-                            "WHERE ir.startup_id = ? " +
-                            "ORDER BY ir.created_at DESC LIMIT 5");
-                        psReq.setInt(1, primaryStartupId);
-                        ResultSet rsReq = psReq.executeQuery();
-                        while (rsReq.next()) {
-                            Map<String, String> req = new HashMap<>();
-                            req.put("id",            String.valueOf(rsReq.getInt("id")));
-                            req.put("investor_name", rsReq.getString("investor_name"));
-                            req.put("amount",        String.valueOf(rsReq.getDouble("amount")));
-                            req.put("message",       rsReq.getString("message"));
-                            req.put("status",        rsReq.getString("status"));
-                            req.put("created_at",    rsReq.getString("created_at"));
-                            requestsList.add(req);
-                        }
-                        rsReq.close(); psReq.close();
-                    }
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    startupName = "Error loading data: " + e.getMessage();
+                // ── 4. Recent investor requests ──
+                PreparedStatement psReq = conn.prepareStatement(
+                    "SELECT ir.id, ir.amount, ir.message, ir.status, ir.created_at, " +
+                    "       u.name AS investor_name, u.email AS investor_email " +
+                    "FROM investment_request ir " +
+                    "JOIN users u ON ir.investor_id = u.id " +
+                    "WHERE ir.startup_id = ? " +
+                    "ORDER BY ir.created_at DESC LIMIT 5");
+                psReq.setInt(1, primaryStartupId);
+                ResultSet rsReq = psReq.executeQuery();
+                while (rsReq.next()) {
+                    Map<String, String> req = new HashMap<>();
+                    req.put("id",            String.valueOf(rsReq.getInt("id")));
+                    req.put("investor_name", rsReq.getString("investor_name"));
+                    req.put("amount",        String.valueOf(rsReq.getDouble("amount")));
+                    req.put("message",       rsReq.getString("message"));
+                    req.put("status",        rsReq.getString("status"));
+                    req.put("created_at",    rsReq.getString("created_at"));
+                    requestsList.add(req);
                 }
+                rsReq.close(); psReq.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            dbErrorMsg = e.getMessage();
+        } finally {
+            try { conn.close(); } catch (Exception ignored) {}
+        }
+    }
 
-                String fmtRaised = fundingRaised >= 1_000_000
-                    ? String.format("$%.1fM", fundingRaised / 1_000_000)
-                    : String.format("$%.0fK", fundingRaised / 1_000);
-                String fmtGoal = fundingGoal >= 1_000_000
-                    ? String.format("$%.1fM", fundingGoal / 1_000_000)
-                    : String.format("$%.0fK", fundingGoal / 1_000);
-                double strokeOffset = 251.2 - (251.2 * fundingPercent / 100.0);
-            %>
+    String fmtRaised = fundingRaised >= 1_000_000
+        ? String.format("$%.1fM", fundingRaised / 1_000_000)
+        : (fundingRaised >= 1_000 ? String.format("$%.0fK", fundingRaised / 1_000) : String.format("$%.0f", fundingRaised));
+    String fmtGoal = fundingGoal >= 1_000_000
+        ? String.format("$%.1fM", fundingGoal / 1_000_000)
+        : (fundingGoal >= 1_000 ? String.format("$%.0fK", fundingGoal / 1_000) : String.format("$%.0f", fundingGoal));
+    double strokeOffset = 251.2 - (251.2 * fundingPercent / 100.0);
+%>
 
                 <!DOCTYPE html>
                 <html lang="en">
@@ -158,6 +163,11 @@
                         </div>
                     </header>
                     <main class="max-w-[1200px] mx-auto px-6 py-8 flex flex-col gap-8">
+                        <% if (dbErrorMsg != null) { %>
+                        <div class="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-6 py-4 text-sm font-medium">
+                            <strong>Dashboard Error:</strong> <%= dbErrorMsg %>
+                        </div>
+                        <% } %>
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
                                 <h1 class="text-3xl font-black">Welcome, <%= userName %>
@@ -200,11 +210,10 @@
                                 </p>
                             </div>
                             <div class="bg-surface rounded-2xl p-5 border border-border-c shadow-sm">
-                                <p class="text-xs font-bold uppercase tracking-wider text-text-muted mb-2">Days
-                                    Remaining
+                                <p class="text-xs font-bold uppercase tracking-wider text-text-muted mb-2">Funding Raised
                                 </p>
-                                <p class="text-3xl font-black">�</p>
-                                <p class="text-xs text-text-muted font-semibold mt-1">No active campaign</p>
+                                <p class="text-3xl font-black"><%= fmtRaised %></p>
+                                <p class="text-xs text-text-muted font-semibold mt-1">of goal <%= fmtGoal %></p>
                             </div>
                         </div>
 
