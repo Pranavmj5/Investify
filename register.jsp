@@ -242,10 +242,10 @@
             function goStep(n) {
                 // Validate step 2 fields before proceeding to step 3
                 if (n === 3) {
-                    const fn = document.getElementById('firstName').value.trim();
-                    const ln = document.getElementById('lastName').value.trim();
-                    const em = document.getElementById('email').value.trim();
-                    const pw = document.getElementById('password').value;
+                    const fn = document.querySelector('[name="firstName"]').value.trim();
+                    const ln = document.querySelector('[name="lastName"]').value.trim();
+                    const em = document.querySelector('[name="email"]').value.trim();
+                    const pw = document.querySelector('[name="password"]').value;
                     if (!fn || !ln || !em || !pw) {
                         alert('Please fill in all required fields before continuing.');
                         return;
